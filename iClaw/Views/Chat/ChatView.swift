@@ -7,6 +7,14 @@ struct ChatView: View {
     @State private var viewModel: ChatViewModel?
     @State private var showTitleEditor = false
     @State private var editingTitle = ""
+    @State private var showCallView = false
+
+    private func ensureViewModel() -> ChatViewModel {
+        if let vm = viewModel { return vm }
+        let vm = ChatViewModel(session: session, modelContext: modelContext)
+        viewModel = vm
+        return vm
+    }
 
     var body: some View {
         ZStack {
@@ -39,6 +47,23 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                HStack(spacing: 16) {
+                    Button {
+                        showCallView = true
+                    } label: {
+                        Image(systemName: "phone.fill")
+                            .font(.body)
+                    }
+
+                    Button {
+                        vm.isTTSEnabled.toggle()
+                    } label: {
+                        Image(systemName: vm.isTTSEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                            .font(.body)
+                            .foregroundStyle(vm.isTTSEnabled ? .primary : .secondary)
+                    }
+                }
+
                 Menu {
                     Button {
                         editingTitle = session.title

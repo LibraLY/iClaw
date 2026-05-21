@@ -125,6 +125,38 @@ final class ChatViewModel {
     /// The message ID the scroll view should initially restore to.
     var initialScrollTarget: UUID?
 
+    // MARK: - TTS Properties
+
+    /// Whether TTS is enabled for this session (persisted to UserDefaults)
+    var isTTSEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isTTSEnabled, forKey: "isTTSEnabled_\(session.id)")
+        }
+    }
+
+    /// Current playing message ID
+    var currentPlayingMessageId: UUID? {
+        TTSService.shared.currentPlayingMessageId
+    }
+
+    /// Whether TTS is playing
+    var isPlayingTTS: Bool {
+        TTSService.shared.isPlaying || TTSService.shared.isStreaming
+    }
+
+    /// Whether TTS is streaming (streaming input mode)
+    var isStreamingTTS: Bool {
+        TTSService.shared.isStreaming
+    }
+
+    /// Accumulated content sent to TTS so far (for streaming mode)
+    private var ttsAccumulatedContent: String = ""
+
+    /// Whether streaming TTS has been started for current message
+    private var ttsStreamingStarted: Bool = false
+
+    /// Whether the current TTS session should continue (for tool call scenarios)
+    private var ttsSessionShouldContinue: Bool = false
     let session: Session
     private var modelContext: ModelContext
 
@@ -278,6 +310,7 @@ final class ChatViewModel {
         self.isVerbose = session.agent?.isVerbose ?? true
         self.isImageInputDisabled = session.agent.map { $0.permissionLevel(for: .files) == .disabled } ?? false
         self.agentDisplayName = session.agent?.name
+        self.isTTSEnabled = UserDefaults.standard.bool(forKey: "isTTSEnabled_\(session.id)")
         // Restore draft text: prefer in-memory cache (more up-to-date), fall back to persisted value.
         if let cached = Self.cachedInputTexts[session.id], !cached.isEmpty {
             self.inputText = cached
@@ -315,7 +348,6 @@ final class ChatViewModel {
         messages = session.sortedMessages
         migrateInlineImages()
         refreshCompressionStats()
-
         checkActiveSessionLock()
         recoverStaleActiveState()
         recoverCompressionState()
